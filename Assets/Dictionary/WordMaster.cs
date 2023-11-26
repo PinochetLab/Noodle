@@ -6,10 +6,13 @@ using Random = UnityEngine.Random;
 public class WordMaster : MonoBehaviour {
 	
 	[SerializeField] private TextAsset textAsset;
-    private SortedSet<string> _words = new ();
-    private Dictionary<int, List<string>> _wordsByLen = new ();
+    private readonly SortedSet<string> _words = new ();
+    private readonly Dictionary<int, List<string>> _wordsByLen = new ();
+
+    private static WordMaster instance;
 
     private void Awake() {
+	    instance = this;
 	    Precalculate();
     }
 
@@ -23,10 +26,10 @@ public class WordMaster : MonoBehaviour {
 	    }
     }
 
-    public bool Exists(string word) => _words.Contains(word);
+    public static bool Exists(string word) => instance._words.Contains(word);
 
-    public string RandomWord(int length) {
-	    var words = _wordsByLen[length];
+    public static string RandomWord(int length) {
+	    var words = instance._wordsByLen[length];
 	    var index = Random.Range(0, words.Count);
 	    return words[index];
     }
