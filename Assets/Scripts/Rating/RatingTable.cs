@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class RatingTable : MonoBehaviour {
 	[SerializeField] private GameObject moveBlockPrefab;
@@ -15,11 +16,22 @@ public class RatingTable : MonoBehaviour {
 		Clear();
 	}
 
-	private void Clear() {
+	public void SetSize(int size) {
+		var n = size * (size - 1) / 2;
+		var gridLg = placeForSpawn.GetComponent<GridLayoutGroup>();
+		var a = (800 - (n - 1) * gridLg.spacing.y) / n;
+		var cellSize = gridLg.cellSize;
+		cellSize.y = a;
+		gridLg.cellSize = cellSize;
+	}
+
+	public int Score => _totalScore;
+
+	public void Clear() {
 		_totalScore = 0;
 		totalScoreText.text = _totalScore.ToString();
-		while ( placeForSpawn.childCount > 1 ) {
-			DestroyImmediate(placeForSpawn.GetChild(1).gameObject);
+		while ( placeForSpawn.childCount > 0 ) {
+			DestroyImmediate(placeForSpawn.GetChild(0).gameObject);
 		}
 	}
 

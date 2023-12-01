@@ -13,7 +13,7 @@ public class Cell : MonoBehaviour {
 	private static Cell _lastSelected;
 	private Graphic _graphic;
 	private char _letter;
-	private readonly Color _lastColor = Color.white;
+	private Color _lastColor = Color.white;
 	private Color _finishedColor = Color.white;
 
 	public Vector2Int Position { get; set; }
@@ -24,6 +24,7 @@ public class Cell : MonoBehaviour {
 
 	public void Finish() {
 		Finished = true;
+		_lastColor = _finishedColor;
 		_graphic.color = _finishedColor;
 	}
 	public void SetSelectable(bool selectable) {
@@ -64,19 +65,22 @@ public class Cell : MonoBehaviour {
 		_lastSelected = this;
 		_graphic.color = button.colors.pressedColor;
 		_isSelected = true;
+		LetterPanel.StartChoose(this);
 	}
 
 	public void Deselect() {
 		_lastSelected = null;
 		if (!Finished) _graphic.color = Color.white;
 		_isSelected = false;
+		LetterPanel.EndChoose();
 	}
 
-	private void SetLetterFromKeyboard(KeyCode keyCode) {
-		SetLetter(keyCode.ToString()[0]);
+	public void SetLetterFromKeyboard(char letter) {
+		SetLetter(letter);
 		_graphic.color = button.colors.pressedColor;
 		_isSelected = false;
 		Field.StartChooseWord(this);
+		LetterPanel.EndChoose();
 	}
 
 	private void Update() {
@@ -87,8 +91,12 @@ public class Cell : MonoBehaviour {
 			{
 				if (Input.GetKeyDown(keyCode))
 				{
-					SetLetterFromKeyboard(keyCode);
+					SetLetterFromKeyboard(keyCode.ToString()[0]);
 				}
+			}
+
+			if ( Input.GetKeyDown(KeyCode.Escape) ) {
+				Deselect();
 			}
 		}
 	}

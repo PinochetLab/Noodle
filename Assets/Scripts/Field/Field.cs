@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using TMPro;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.UI;
 
 public enum ChoiceMode {
@@ -15,10 +17,16 @@ public class Field : MonoBehaviour {
 	[SerializeField] private Button finishButton;
 	[SerializeField] private RatingTable firstRatingTable;
 	[SerializeField] private RatingTable secondRatingTable;
+	[SerializeField] private GridLayoutGroup gridLayoutGroup;
+
+	[SerializeField] private TMP_Text text;
+	[SerializeField] private UnityEvent onWin;
 
 	private Cell[,] _cells;
 
 	private int _size;
+	private int _moveCount;
+	private int _currentMoveCount;
 
 	private bool _isFirstPlayer = true;
 
@@ -64,7 +72,7 @@ public class Field : MonoBehaviour {
 	}
 
 	private void UpdateAvailableCells() {
-		//UpdateColorScheme();
+		UpdateColorScheme();
 		for ( var i = 0; i < _size; i++ ) {
 			for ( var j = 0; j < _size; j++ ) {
 				if ( !CanUseInPath(i, j) ) {
@@ -86,6 +94,7 @@ public class Field : MonoBehaviour {
 		_necessaryCell = cell;
 		ChoiceMode = ChoiceMode.Word;
 		_instance.UpdateAvailableCells();
+		//Debug.Log(WordFinder.Find(_instance._size, _instance._cells, _necessaryCell));
 	}
 
 	public static bool TryContinuePath(Cell cell) {
@@ -114,22 +123,48 @@ public class Field : MonoBehaviour {
 		if ( ChoiceMode == ChoiceMode.Letter ) return;
 		var word = new string(_path.Select(cell => cell.Letter).ToArray()).ToLower();
 		if ( WordMaster.Exists(word) ) {
-			var ratingTable = _isFirstPlayer ? firstRatingTable : secondRatingTable;
-			ratingTable.AddWord(word);
-			var letter = _necessaryCell.Letter;
-			Cancel();
-			_necessaryCell.SetLetter(letter);
-			_necessaryCell.Finish();
-			FinishedCells.Add(_necessaryCell);
-			Debug.Log("yes");
-			SwitchPlayer();
-			UpdateSelectableCells();
+			if ( !WordMaster.WasUsed(word) ) {
+				if ( _path.Contains(_necessaryCell) ) {
+					WordMaster.Add(word);
+					var ratingTable = _isFirstPlayer ? firstRatingTable : secondRatingTable;
+                    ratingTable.AddWord(word);
+                    var letter = _necessaryCell.Letter;
+                    Cancel();
+                    _necessaryCell.SetLetter(letter);
+                    _necessaryCell.Finish();
+                    FinishedCells.Add(_necessaryCell);
+                    SwitchPlayer();
+                    UpdateSelectableCells();
+                    _currentMoveCount++;
+                    if ( _currentMoveCount >= _moveCount ) {
+	                    var s1 = firstRatingTable.Score;
+	                    var s2 = secondRatingTable.Score;
+	                    if ( s1 == s2 ) text.text = "Draw";
+	                    else if ( s1 > s2 ) text.text = "Player 1 won";
+	                    else text.text = "Player 2 won";
+	                    onWin.Invoke();
+                    }
+				}
+				else {
+					ErrorHandle.Push(word, ComposeError.UnusedLetter);
+				}
+			}
+			else {
+				ErrorHandle.Push(word, ComposeError.WasComposed);
+			}
+		}
+		else {
+			ErrorHandle.Push(word, ComposeError.DoesNotExist);
 		}
 	}
 
 	private void Update() {
+		if (ChoiceMode == ChoiceMode.Letter) return;
 		if ( Input.GetKeyDown(KeyCode.Return) ) {
 			Finish();
+		}
+		if ( Input.GetKeyDown(KeyCode.Escape) ) {
+			Cancel();
 		}
 	}
 
@@ -145,17 +180,26 @@ public class Field : MonoBehaviour {
 			return;
 		}
 		_path[^1].SetAsPathEnd();
+		_instance.UpdateAvailableCells();
 	}
 
-	private void CLearChildren() {
+	private void ClearChildren() {
 		var children = (from Transform child in transform select child.gameObject).ToList();
 		children.ForEach(Destroy);
 	}
 
-	private void Build(int fieldSize) {
-		CLearChildren();
+	public void Build(int fieldSize) {
+		gridLayoutGroup.cellSize = gridLayoutGroup.GetComponent<RectTransform>().sizeDelta / fieldSize;
+		ClearChildren();
+		WordMaster.Clear();
 		
 		_size = fieldSize;
+		_moveCount = _size * (_size - 1);
+		_currentMoveCount = 0;
+		firstRatingTable.Clear();
+		firstRatingTable.SetSize(_size);
+		secondRatingTable.Clear();
+		secondRatingTable.SetSize(_size);
 		_cells = new Cell[_size, _size];
 		
 		for ( var i = 0; i < _size; i++ ) {
@@ -167,6 +211,7 @@ public class Field : MonoBehaviour {
 		}
 
 		var startWord = WordMaster.RandomWord(_size);
+		WordMaster.Add(startWord);
 		var h = _size / 2;
 		
 		for ( var i = 0; i < _size; i++ ) {
@@ -186,6 +231,10 @@ public class Field : MonoBehaviour {
 				_cells[i, j].ApplyColorScheme(scheme);
 			}
 		}
+	}
+
+	public void Quit() {
+		Application.Quit();
 	}
 
 	private void SwitchPlayer() {
